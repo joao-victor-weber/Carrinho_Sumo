@@ -20,7 +20,7 @@ constexpr uint8_t PIN_MOTOR_LEFT_RPWM = 13;
 constexpr uint8_t PIN_MOTOR_LEFT_LPWM = 14;
 
 // HW-039 do motor direito: R_EN e L_EN ligados diretamente a 3,3 V.
-constexpr uint8_t PIN_MOTOR_RIGHT_RPWM = 17;
+constexpr uint8_t PIN_MOTOR_RIGHT_RPWM = 19;
 constexpr uint8_t PIN_MOTOR_RIGHT_LPWM = 18;
 
 // O RPWM direito gira fisicamente para trás; a inversão é feita no software.
