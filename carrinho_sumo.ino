@@ -31,7 +31,7 @@ constexpr bool INVERT_RIGHT_MOTOR = true;
 constexpr uint8_t PIN_HCSR04_LEFT_TRIG = 21;
 constexpr uint8_t PIN_HCSR04_LEFT_ECHO = 33;
 constexpr uint8_t PIN_HCSR04_RIGHT_TRIG = 22;
-constexpr uint8_t PIN_HCSR04_RIGHT_ECHO = 39;
+constexpr uint8_t PIN_HCSR04_RIGHT_ECHO = 5;
 
 // Sensores TCRT traseiros.
 constexpr uint8_t PIN_EDGE_REAR_LEFT = 34;
