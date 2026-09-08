@@ -53,7 +53,7 @@ constexpr uint32_t SERIAL_BAUD_RATE = 115200;
 constexpr uint32_t DEBUG_INTERVAL_MS = 250;
 
 // Os módulos TCRT informados detectam a borda branca em HIGH.
-constexpr int EDGE_DETECTED_LEVEL = HIGH;
+constexpr int EDGE_DETECTED_LEVEL = LOW;
 
 // PWM: domínio lógico -255..255, limitado fisicamente a 0..180.
 constexpr uint32_t PWM_FREQUENCY_HZ = 20000;
