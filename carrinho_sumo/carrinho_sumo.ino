@@ -50,8 +50,9 @@ constexpr bool DEBUG = true;
 constexpr uint32_t SERIAL_BAUD_RATE = 115200;
 constexpr uint32_t DEBUG_INTERVAL_MS = 250;
 
-// Os módulos TCRT informados detectam a borda branca em LOW.
-constexpr int EDGE_DETECTED_LEVEL = LOW;
+// Os sensores frontais e traseiros usam níveis ativos diferentes.
+constexpr int EDGE_FRONT_DETECTED_LEVEL = LOW;
+constexpr int EDGE_REAR_DETECTED_LEVEL = HIGH;
 
 // PWM: domínio lógico -255..255, limitado fisicamente a 0..180.
 constexpr uint32_t PWM_FREQUENCY_HZ = 20000;
@@ -81,7 +82,7 @@ constexpr uint32_t EDGE_SETTLE_MS = 50;
 constexpr uint32_t EDGE_RECOVERY_TURN_MS = 300;
 constexpr uint32_t EDGE_BOTH_TURN_MS = 180;
 constexpr uint32_t EDGE_VERIFY_MS = 70;
-constexpr uint8_t EDGE_RECOVERY_MAX_ATTEMPTS = 3;
+constexpr uint8_t EDGE_RECOVERY_MAX_ATTEMPTS = 30;
 
 // Ultrassônicos.
 constexpr uint16_t OPPONENT_DISTANCE_CM = 70;
@@ -494,18 +495,33 @@ void turnLeft(int speed) {
 // 8. LEITURA DOS SENSORES DE BORDA
 // ============================================================================
 
-bool edgeDetectedOnPin(uint8_t pin) {
-  return digitalRead(pin) == EDGE_DETECTED_LEVEL;
+bool edgeDetectedOnPin(uint8_t pin, int detectedLevel) {
+  return digitalRead(pin) == detectedLevel;
 }
 
 EdgeReadings readEdgeSensors() {
   EdgeReadings readings;
 
-  readings.frontLeft = edgeDetectedOnPin(PIN_EDGE_FRONT_LEFT);
-  readings.frontCenter = edgeDetectedOnPin(PIN_EDGE_FRONT_CENTER);
-  readings.frontRight = edgeDetectedOnPin(PIN_EDGE_FRONT_RIGHT);
-  readings.rearLeft = edgeDetectedOnPin(PIN_EDGE_REAR_LEFT);
-  readings.rearRight = edgeDetectedOnPin(PIN_EDGE_REAR_RIGHT);
+  readings.frontLeft = edgeDetectedOnPin(
+    PIN_EDGE_FRONT_LEFT,
+    EDGE_FRONT_DETECTED_LEVEL
+  );
+  readings.frontCenter = edgeDetectedOnPin(
+    PIN_EDGE_FRONT_CENTER,
+    EDGE_FRONT_DETECTED_LEVEL
+  );
+  readings.frontRight = edgeDetectedOnPin(
+    PIN_EDGE_FRONT_RIGHT,
+    EDGE_FRONT_DETECTED_LEVEL
+  );
+  readings.rearLeft = edgeDetectedOnPin(
+    PIN_EDGE_REAR_LEFT,
+    EDGE_REAR_DETECTED_LEVEL
+  );
+  readings.rearRight = edgeDetectedOnPin(
+    PIN_EDGE_REAR_RIGHT,
+    EDGE_REAR_DETECTED_LEVEL
+  );
 
   readings.anyFront = readings.frontLeft ||
                       readings.frontCenter ||
