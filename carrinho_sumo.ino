@@ -2,7 +2,7 @@
   carrinho_sumo.ino
 
   Robô de sumô com ESP32 DevKit V1, dois módulos HW-039/BTS7960,
-  sete sensores digitais de borda e dois HC-SR04.
+  cinco sensores digitais de borda e dois HC-SR04.
 
   Compatível com Arduino-ESP32 Core 3.x.
   Controle totalmente não bloqueante: millis() e micros().
@@ -16,33 +16,31 @@
 // ============================================================================
 
 // HW-039 do motor esquerdo: R_EN e L_EN ligados diretamente a 3,3 V.
-constexpr uint8_t PIN_MOTOR_LEFT_RPWM = 13;
-constexpr uint8_t PIN_MOTOR_LEFT_LPWM = 14;
+constexpr uint8_t PIN_MOTOR_LEFT_RPWM = 27;
+constexpr uint8_t PIN_MOTOR_LEFT_LPWM = 26;
 
 // HW-039 do motor direito: R_EN e L_EN ligados diretamente a 3,3 V.
-constexpr uint8_t PIN_MOTOR_RIGHT_RPWM = 19;
-constexpr uint8_t PIN_MOTOR_RIGHT_LPWM = 18;
+constexpr uint8_t PIN_MOTOR_RIGHT_RPWM = 25;
+constexpr uint8_t PIN_MOTOR_RIGHT_LPWM = 33;
 
-// O RPWM direito gira fisicamente para trás; a inversão é feita no software.
+// A pinagem de ambos os motores já está organizada nos sentidos frente/ré.
 constexpr bool INVERT_LEFT_MOTOR = false;
-constexpr bool INVERT_RIGHT_MOTOR = true;
+constexpr bool INVERT_RIGHT_MOTOR = false;
 
 // Sensores ultrassônicos.
-constexpr uint8_t PIN_HCSR04_LEFT_TRIG = 21;
-constexpr uint8_t PIN_HCSR04_LEFT_ECHO = 33;
-constexpr uint8_t PIN_HCSR04_RIGHT_TRIG = 22;
-constexpr uint8_t PIN_HCSR04_RIGHT_ECHO = 5;
+constexpr uint8_t PIN_HCSR04_LEFT_TRIG = 5;
+constexpr uint8_t PIN_HCSR04_LEFT_ECHO = 18;
+constexpr uint8_t PIN_HCSR04_RIGHT_TRIG = 19;
+constexpr uint8_t PIN_HCSR04_RIGHT_ECHO = 23;
 
 // Sensores TCRT traseiros.
-constexpr uint8_t PIN_EDGE_REAR_LEFT = 34;
-constexpr uint8_t PIN_EDGE_REAR_RIGHT = 35;
+constexpr uint8_t PIN_EDGE_REAR_LEFT = 13;
+constexpr uint8_t PIN_EDGE_REAR_RIGHT = 32;
 
-// TCRT5000 frontal de cinco canais.
-constexpr uint8_t PIN_EDGE_FRONT_FAR_LEFT = 23;
-constexpr uint8_t PIN_EDGE_FRONT_LEFT = 25;
-constexpr uint8_t PIN_EDGE_FRONT_CENTER = 26;
-constexpr uint8_t PIN_EDGE_FRONT_RIGHT = 27;
-constexpr uint8_t PIN_EDGE_FRONT_FAR_RIGHT = 32;
+// TCRT5000 frontal de três canais.
+constexpr uint8_t PIN_EDGE_FRONT_LEFT = 34;
+constexpr uint8_t PIN_EDGE_FRONT_CENTER = 35;
+constexpr uint8_t PIN_EDGE_FRONT_RIGHT = 14;
 
 // ============================================================================
 // 2. CONSTANTES CALIBRÁVEIS
@@ -52,7 +50,7 @@ constexpr bool DEBUG = true;
 constexpr uint32_t SERIAL_BAUD_RATE = 115200;
 constexpr uint32_t DEBUG_INTERVAL_MS = 250;
 
-// Os módulos TCRT informados detectam a borda branca em HIGH.
+// Os módulos TCRT informados detectam a borda branca em LOW.
 constexpr int EDGE_DETECTED_LEVEL = LOW;
 
 // PWM: domínio lógico -255..255, limitado fisicamente a 0..180.
@@ -143,11 +141,9 @@ enum class UltrasonicPhase : uint8_t {
 };
 
 struct EdgeReadings {
-  bool frontFarLeft = false;
   bool frontLeft = false;
   bool frontCenter = false;
   bool frontRight = false;
-  bool frontFarRight = false;
   bool rearLeft = false;
   bool rearRight = false;
   bool anyFront = false;
@@ -297,11 +293,9 @@ bool validatePinConfiguration() {
     PIN_HCSR04_RIGHT_ECHO,
     PIN_EDGE_REAR_LEFT,
     PIN_EDGE_REAR_RIGHT,
-    PIN_EDGE_FRONT_FAR_LEFT,
     PIN_EDGE_FRONT_LEFT,
     PIN_EDGE_FRONT_CENTER,
-    PIN_EDGE_FRONT_RIGHT,
-    PIN_EDGE_FRONT_FAR_RIGHT
+    PIN_EDGE_FRONT_RIGHT
   };
 
   constexpr uint8_t outputPins[] = {
@@ -507,19 +501,15 @@ bool edgeDetectedOnPin(uint8_t pin) {
 EdgeReadings readEdgeSensors() {
   EdgeReadings readings;
 
-  readings.frontFarLeft = edgeDetectedOnPin(PIN_EDGE_FRONT_FAR_LEFT);
   readings.frontLeft = edgeDetectedOnPin(PIN_EDGE_FRONT_LEFT);
   readings.frontCenter = edgeDetectedOnPin(PIN_EDGE_FRONT_CENTER);
   readings.frontRight = edgeDetectedOnPin(PIN_EDGE_FRONT_RIGHT);
-  readings.frontFarRight = edgeDetectedOnPin(PIN_EDGE_FRONT_FAR_RIGHT);
   readings.rearLeft = edgeDetectedOnPin(PIN_EDGE_REAR_LEFT);
   readings.rearRight = edgeDetectedOnPin(PIN_EDGE_REAR_RIGHT);
 
-  readings.anyFront = readings.frontFarLeft ||
-                      readings.frontLeft ||
+  readings.anyFront = readings.frontLeft ||
                       readings.frontCenter ||
-                      readings.frontRight ||
-                      readings.frontFarRight;
+                      readings.frontRight;
 
   readings.anyRear = readings.rearLeft || readings.rearRight;
   readings.any = readings.anyFront || readings.anyRear;
@@ -538,11 +528,9 @@ int8_t chooseRecoveryTurnDirection(const EdgeReadings& readings) {
   uint8_t leftRisk = 0;
   uint8_t rightRisk = 0;
 
-  leftRisk += readings.frontFarLeft ? 1 : 0;
   leftRisk += readings.frontLeft ? 1 : 0;
   leftRisk += readings.rearLeft ? 1 : 0;
 
-  rightRisk += readings.frontFarRight ? 1 : 0;
   rightRisk += readings.frontRight ? 1 : 0;
   rightRisk += readings.rearRight ? 1 : 0;
 
@@ -1020,11 +1008,9 @@ void printDebugStatus() {
   Serial.print(robotStateName(robotState));
 
   Serial.print(F(" | frente="));
-  Serial.print(currentEdges.frontFarLeft ? '1' : '0');
   Serial.print(currentEdges.frontLeft ? '1' : '0');
   Serial.print(currentEdges.frontCenter ? '1' : '0');
   Serial.print(currentEdges.frontRight ? '1' : '0');
-  Serial.print(currentEdges.frontFarRight ? '1' : '0');
 
   Serial.print(F(" | traseira="));
   Serial.print(currentEdges.rearLeft ? '1' : '0');
@@ -1061,14 +1047,12 @@ void configurePins() {
   pinMode(PIN_HCSR04_LEFT_ECHO, INPUT);
   pinMode(PIN_HCSR04_RIGHT_ECHO, INPUT);
 
-  // INPUT puro: GPIO34, GPIO35 e GPIO39 não possuem pull-up/pull-down interno.
+  // GPIO34 e GPIO35 são somente entrada e não possuem pull-up/pull-down interno.
   pinMode(PIN_EDGE_REAR_LEFT, INPUT);
   pinMode(PIN_EDGE_REAR_RIGHT, INPUT);
-  pinMode(PIN_EDGE_FRONT_FAR_LEFT, INPUT);
   pinMode(PIN_EDGE_FRONT_LEFT, INPUT);
   pinMode(PIN_EDGE_FRONT_CENTER, INPUT);
   pinMode(PIN_EDGE_FRONT_RIGHT, INPUT);
-  pinMode(PIN_EDGE_FRONT_FAR_RIGHT, INPUT);
 }
 
 bool configurePwm() {
