@@ -383,10 +383,10 @@ void forceMotorOutputsOff() {
     ledcWrite(PIN_MOTOR_RIGHT_RPWM, 0);
     ledcWrite(PIN_MOTOR_RIGHT_LPWM, 0);
   } else {
-    digitalWrite(PIN_MOTOR_LEFT_RPWM, LOW);
-    digitalWrite(PIN_MOTOR_LEFT_LPWM, LOW);
-    digitalWrite(PIN_MOTOR_RIGHT_RPWM, LOW);
-    digitalWrite(PIN_MOTOR_RIGHT_LPWM, LOW);
+    ledcWrite(PIN_MOTOR_LEFT_RPWM, 0);
+    ledcWrite(PIN_MOTOR_LEFT_LPWM, 0);
+    ledcWrite(PIN_MOTOR_RIGHT_RPWM, 0);
+    ledcWrite(PIN_MOTOR_RIGHT_LPWM, 0);
   }
 }
 
@@ -599,7 +599,7 @@ void finishUltrasonicMeasurement(bool valid, uint32_t pulseWidthUs = 0) {
     }
   }
 
-  digitalWrite(activeTrigPin(), LOW);
+  ledcWrite(activeTrigPin(), 0);
   ultrasonicRuntime.phase = UltrasonicPhase::IDLE;
   ultrasonicRuntime.lastMeasurementFinishedUs = micros();
   ultrasonicRuntime.activeSide =
@@ -615,7 +615,7 @@ void updateUltrasonicSensors() {
     case UltrasonicPhase::IDLE:
       if (static_cast<uint32_t>(nowUs - ultrasonicRuntime.lastMeasurementFinishedUs) >=
           ULTRASONIC_INTER_SENSOR_US) {
-        digitalWrite(activeTrigPin(), LOW);
+        ledcWrite(activeTrigPin(), 0);
         ultrasonicRuntime.phase = UltrasonicPhase::TRIGGER_LOW;
         ultrasonicRuntime.phaseStartedUs = nowUs;
       }
@@ -624,7 +624,7 @@ void updateUltrasonicSensors() {
     case UltrasonicPhase::TRIGGER_LOW:
       if (static_cast<uint32_t>(nowUs - ultrasonicRuntime.phaseStartedUs) >=
           ULTRASONIC_TRIGGER_LOW_US) {
-        digitalWrite(activeTrigPin(), HIGH);
+        ledcWrite(activeTrigPin(), 255);
         ultrasonicRuntime.phase = UltrasonicPhase::TRIGGER_HIGH;
         ultrasonicRuntime.phaseStartedUs = nowUs;
       }
@@ -633,7 +633,7 @@ void updateUltrasonicSensors() {
     case UltrasonicPhase::TRIGGER_HIGH:
       if (static_cast<uint32_t>(nowUs - ultrasonicRuntime.phaseStartedUs) >=
           ULTRASONIC_TRIGGER_HIGH_US) {
-        digitalWrite(activeTrigPin(), LOW);
+        ledcWrite(activeTrigPin(), 0 );
         ultrasonicRuntime.phase = UltrasonicPhase::WAIT_ECHO_RISE;
         ultrasonicRuntime.measurementStartedUs = nowUs;
       }
@@ -1039,105 +1039,233 @@ void printDebugStatus() {
   Serial.println(F("cm"));
 }
 
-// ============================================================================
+// // ============================================================================
 // 13. INICIALIZAÇÃO
 // ============================================================================
 
 void configurePins() {
+
+  // ========================================
+  // MOTORES
+  // ========================================
+
   pinMode(PIN_MOTOR_LEFT_RPWM, OUTPUT);
   pinMode(PIN_MOTOR_LEFT_LPWM, OUTPUT);
+
   pinMode(PIN_MOTOR_RIGHT_RPWM, OUTPUT);
   pinMode(PIN_MOTOR_RIGHT_LPWM, OUTPUT);
 
-  // Garante nível baixo antes de ativar o periférico PWM.
-  digitalWrite(PIN_MOTOR_LEFT_RPWM, LOW);
-  digitalWrite(PIN_MOTOR_LEFT_LPWM, LOW);
-  digitalWrite(PIN_MOTOR_RIGHT_RPWM, LOW);
-  digitalWrite(PIN_MOTOR_RIGHT_LPWM, LOW);
+  // Começa obrigatoriamente parado
+  ledcWrite(PIN_MOTOR_LEFT_RPWM, 0);
+  ledcWrite(PIN_MOTOR_LEFT_LPWM, 0);
+
+  ledcWrite(PIN_MOTOR_RIGHT_RPWM, 0);
+  ledcWrite(PIN_MOTOR_RIGHT_LPWM, 0);
+
+
+  // ========================================
+  // HC-SR04
+  // ========================================
 
   pinMode(PIN_HCSR04_LEFT_TRIG, OUTPUT);
-  pinMode(PIN_HCSR04_RIGHT_TRIG, OUTPUT);
-  digitalWrite(PIN_HCSR04_LEFT_TRIG, LOW);
-  digitalWrite(PIN_HCSR04_RIGHT_TRIG, LOW);
-
   pinMode(PIN_HCSR04_LEFT_ECHO, INPUT);
+
+  pinMode(PIN_HCSR04_RIGHT_TRIG, OUTPUT);
   pinMode(PIN_HCSR04_RIGHT_ECHO, INPUT);
 
-  // GPIO34 e GPIO35 são somente entrada e não possuem pull-up/pull-down interno.
+  // TRIG começa desligado
+  ledcWrite(PIN_HCSR04_LEFT_TRIG, 0);
+  ledcWrite(PIN_HCSR04_RIGHT_TRIG, 0);
+
+
+  // ========================================
+  // SENSORES DE BORDA
+  // ========================================
+
   pinMode(PIN_EDGE_REAR_LEFT, INPUT);
   pinMode(PIN_EDGE_REAR_RIGHT, INPUT);
+
   pinMode(PIN_EDGE_FRONT_LEFT, INPUT);
   pinMode(PIN_EDGE_FRONT_CENTER, INPUT);
   pinMode(PIN_EDGE_FRONT_RIGHT, INPUT);
 }
 
+
+// ============================================================================
+// CONFIGURAÇÃO PWM
+// ============================================================================
+
 bool configurePwm() {
-  const bool leftRpwmOk = ledcAttach(
+
+  bool motorLeftRpwm = ledcAttach(
     PIN_MOTOR_LEFT_RPWM,
     PWM_FREQUENCY_HZ,
     PWM_RESOLUTION_BITS
   );
 
-  const bool leftLpwmOk = ledcAttach(
+  bool motorLeftLpwm = ledcAttach(
     PIN_MOTOR_LEFT_LPWM,
     PWM_FREQUENCY_HZ,
     PWM_RESOLUTION_BITS
   );
 
-  const bool rightRpwmOk = ledcAttach(
+  bool motorRightRpwm = ledcAttach(
     PIN_MOTOR_RIGHT_RPWM,
     PWM_FREQUENCY_HZ,
     PWM_RESOLUTION_BITS
   );
 
-  const bool rightLpwmOk = ledcAttach(
+  bool motorRightLpwm = ledcAttach(
     PIN_MOTOR_RIGHT_LPWM,
     PWM_FREQUENCY_HZ,
     PWM_RESOLUTION_BITS
   );
 
-  return leftRpwmOk && leftLpwmOk && rightRpwmOk && rightLpwmOk;
+
+  // Garante motores desligados após configurar o LEDC
+
+  ledcWrite(PIN_MOTOR_LEFT_RPWM, 0);
+  ledcWrite(PIN_MOTOR_LEFT_LPWM, 0);
+
+  ledcWrite(PIN_MOTOR_RIGHT_RPWM, 0);
+  ledcWrite(PIN_MOTOR_RIGHT_LPWM, 0);
+
+
+  return motorLeftRpwm &&
+         motorLeftLpwm &&
+         motorRightRpwm &&
+         motorRightLpwm;
 }
 
+
+// ============================================================================
+// SETUP
+// ============================================================================
+
 void setup() {
+
+  // ========================================
+  // SERIAL
+  // ========================================
+
   if (DEBUG) {
+
     Serial.begin(SERIAL_BAUD_RATE);
+
+    Serial.println();
+    Serial.println(F("=============================="));
+    Serial.println(F("     CARRINHO SUMO ESP32"));
+    Serial.println(F("=============================="));
   }
 
+
+  // ========================================
+  // CONFIGURA PINOS
+  // ========================================
+
   configurePins();
-  forceMotorOutputsOff();
+
+
+  // ========================================
+  // VALIDA PINAGEM
+  // ========================================
 
   configurationValid = validatePinConfiguration();
 
-  if (configurationValid) {
-    pwmAttached = configurePwm();
-  }
+  if (!configurationValid) {
 
-  forceMotorOutputsOff();
-
-  if (!configurationValid || !pwmAttached) {
     robotState = RobotState::SAFE_STOP;
-    stateStartedMs = millis();
 
     if (DEBUG) {
-      Serial.println(F("[ERRO] Inicializacao abortada. Motores permanecerao desligados."));
+      Serial.println(F("[ERRO] Configuracao de pinos invalida."));
     }
+
     return;
   }
 
-  startupDelayMs = esp_random() % (STARTUP_DELAY_MAX_MS + 1U);
+
+  // ========================================
+  // CONFIGURA PWM
+  // ========================================
+
+  pwmAttached = configurePwm();
+
+  if (!pwmAttached) {
+
+    robotState = RobotState::SAFE_STOP;
+
+    if (DEBUG) {
+      Serial.println(F("[ERRO] Falha ao configurar PWM."));
+    }
+
+    return;
+  }
+
+
+  // ========================================
+  // GARANTE MOTORES PARADOS
+  // ========================================
+
+  ledcWrite(PIN_MOTOR_LEFT_RPWM, 0);
+  ledcWrite(PIN_MOTOR_LEFT_LPWM, 0);
+
+  ledcWrite(PIN_MOTOR_RIGHT_RPWM, 0);
+  ledcWrite(PIN_MOTOR_RIGHT_LPWM, 0);
+
+
+  leftMotorRuntime.activePhysicalDirection = 0;
+  leftMotorRuntime.lastPhysicalDirection = 0;
+  leftMotorRuntime.zeroTimingActive = false;
+
+  rightMotorRuntime.activePhysicalDirection = 0;
+  rightMotorRuntime.lastPhysicalDirection = 0;
+  rightMotorRuntime.zeroTimingActive = false;
+
+
+  // ========================================
+  // ATRASO INICIAL ALEATÓRIO
+  // ========================================
+
+  startupDelayMs =
+    esp_random() % (STARTUP_DELAY_MAX_MS + 1U);
+
+
+  // ========================================
+  // ESTADO INICIAL
+  // ========================================
+
   robotState = RobotState::STARTUP_DELAY;
+
   stateStartedMs = millis();
+
   ultrasonicRuntime.lastMeasurementFinishedUs = micros();
 
+
+  // ========================================
+  // DEBUG
+  // ========================================
+
   if (DEBUG) {
-    Serial.println(F("[OK] Carrinho de sumo inicializado."));
-    Serial.print(F("[STARTUP] Atraso aleatorio: "));
+
+    Serial.println(F("[OK] Pinos configurados."));
+
+    Serial.println(F("[OK] PWM configurado."));
+
+    Serial.println(F("[OK] Motores parados."));
+
+    Serial.print(F("[STARTUP] Espera aleatoria: "));
     Serial.print(startupDelayMs);
     Serial.println(F(" ms"));
-    Serial.print(F("[PWM] Limite fisico: "));
+
+    Serial.print(F("[PWM] Frequencia: "));
+    Serial.print(PWM_FREQUENCY_HZ);
+    Serial.println(F(" Hz"));
+
+    Serial.print(F("[PWM] Limite: "));
     Serial.print(PWM_PHYSICAL_MAX);
     Serial.println(F("/255"));
+
+    Serial.println(F("=============================="));
   }
 }
 
